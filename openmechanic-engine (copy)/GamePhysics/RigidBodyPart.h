@@ -6,6 +6,7 @@
 
 #include "Utils/DynamicArray.h"
 #include "BodyBlockInstance.h"
+#include "PhysicalObject.h"
 #include "Blocks/BlockIDs.h"
 #include "Blocks/BodyBlock.h"
 #include "ClientInterfaces/RigidBodyPartInterface.h"
@@ -19,15 +20,8 @@ class Spring;
 class FullBody;
 class GameWorld;
 
-bool operator<(const RigidBodyPart& lhs, const RigidBodyPart& rhs) {
-	return &lhs < &rhs;
-}
-
-ATTRIBUTE_ALIGNED16(class) RigidBodyPart : public GameObject, public ServerInterface<RigidBodyPartData> {
+ATTRIBUTE_ALIGNED16(class) RigidBodyPart : public PhysicalObject, public ServerInterfaceImplBase<RigidBodyPartData> {
 public:
-	using DataIndex = AsyncObjectContainer::DataWriteIndex<RigidBodyPartData>;
-	
-	
      /**
 			throws exception if block already filled
 
@@ -38,15 +32,32 @@ public:
       
 	BT_DECLARE_ALIGNED_ALLOCATOR();
 
-	RigidBodyPart(OID oid, FullBody* parent, GameWorld* gameWorld);
-	
+	DECLARE_RESOURCE(RigidBodyPart);
+
+	class Listener {
+	public:
+
+		inline virtual ~Listener() {
+		}
+		
+		virtual void onBlockWasAdded(RigidBodyPart *bodyPart, BodyBlockInstance * bbInst) = 0;
+
+		virtual void onBlockIsBeeingRemoved(RigidBodyPart *bodyPart, BodyBlockInstance * bbInst) = 0;
+	};
+
+
 	~RigidBodyPart();
 	
 	inline FullBody* getParent() {
 		return _parent;
 	}
+
 	
 	void getWorldTransformForPosition(Eigen::Vector3i const & index, btVector3 * pos, btQuaternion * rot);
+
+	inline void setListener(Listener* listener) {
+		_listener = listener;
+	}
 
 	btTransform getCurrentWorldTransform() const;
 
@@ -70,7 +81,6 @@ public:
 		return _mass;
 	}
 
-#if 0
 	void addJoint(Joint * joint, BlockIndex const& pos, BlockIndex const& dir);
 
 	/**
@@ -106,8 +116,6 @@ public:
 	 * @return nullptr if there is no such joint
 	 */
 	Joint* getJointAt(BlockIndex const& pos, BlockIndex const& dir);
-	
-#endif
 
 	inline BodyBlockInstance const* getBlockInstanceAt(BlockIndex const& pos) const {
 		return getBlockAt(pos).get();
@@ -138,11 +146,9 @@ public:
 	
 	std::pair<BlockIndex, BlockIndex> getBlockDataDimensions() const;
 
-	btTransform _centerOffset;
-	
 protected:
+	RigidBodyPart(AsyncObjectContainer& container, OID oid, FullBody* parent, GameWorld* gameWorld);
 
-#if 0
 	struct JointEntry {
 		Joint * _joint;
 		// FIXME: theoretically unnecessary since joint has already position and axis
@@ -166,14 +172,14 @@ protected:
 
 		}
 	};
-	
-#endif
 
 	btTransform _centerTransformInv;
 
 	FullBody *_parent;
 
 	DynamicArray<BodyBlockInstancePtr> _blockData;
+
+	Listener * _listener = nullptr;
 
 	GameWorld* _gameWorld;
 
@@ -183,10 +189,9 @@ protected:
 	btScalar _mass = 0;
 	int _numBlocks = 0;
 	
-#if 0
+
 	std::list<JointEntry> _connectedJoints;
 	std::list<SpringEntry> _connectedSprings;
-#endif
 
 	bool _isFrezed = false;
 
@@ -216,9 +221,6 @@ protected:
 	void updateShapeMassAndPosition();
 	
 	void ensureIndexExits(BlockIndex const& index);
-	
-public:
-	DataIndex myIndex; // TODO private
 };
 
 typedef RigidBodyPart::Ptr RigidBodyPartPtr;

@@ -25,24 +25,20 @@ BodyBlockInstanceBase::~BodyBlockInstanceBase()
 }
 
 BodyBlockInstance::BodyBlockInstance(RigidBodyPart* parentPart, const BodyBlock* bodyBlock, BlockIndex const& centerIndex, const btQuaternion& relRot) :
-	BodyBlockInstanceBase(bodyBlock, centerIndex, relRot), _parentPart(parentPart)
-	//, _attachedControl(parentPart->getGameWorld()->getBlockControlFactory()->createControlForBlock(bodyBlock->getID(), parentPart->getGameWorld()->getControlEngine()))
+	BodyBlockInstanceBase(bodyBlock, centerIndex, relRot), _parentPart(parentPart), 
+	_attachedControl(parentPart->getGameWorld()->getBlockControlFactory()->createControlForBlock(bodyBlock->getID(), parentPart->getGameWorld()->getControlEngine()))
 {
-#if 0
 	if (_attachedControl) {
 		BlockConctrolObject* bco = dynamic_cast<BlockConctrolObject*>(_attachedControl);
 		if (bco)
 			bco->setBlockInstance(this);
 	}
-#endif
 }
 
 BodyBlockInstance::~BodyBlockInstance()
 {
-#if 0
 	if(_attachedControl)
 	{
 		_parentPart->getGameWorld()->getResoureManager()->destroy(_attachedControl);
 	}
-#endif 
 }

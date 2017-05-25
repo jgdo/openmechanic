@@ -1,21 +1,19 @@
 #include "RigidBodyPart.h"
-// #include "Joint.h"
-// #include "Spring.h"
+#include "Joint.h"
+#include "Spring.h"
 #include "GameWorld.h"
-#include "FullBody.h"
 
 #include <stdexcept>
 #include <iostream>
 
-RigidBodyPart::RigidBodyPart(OID oid, FullBody* parent, GameWorld* gameWorld):
-GameObject(oid), _parent(parent), _blockData(3, 3, 3), _gameWorld(gameWorld), myIndex(parent->myIndex.container.newBin<RigidBodyPartData>(oid, *this)) {
+RigidBodyPart::RigidBodyPart(AsyncObjectContainer& container, OID oid, FullBody* parent, GameWorld* gameWorld) :
+PhysicalObject(oid), ServerInterfaceImplBase< RigidBodyPartData>(container, oid), _parent(parent), _blockData(3, 3, 3), _gameWorld(gameWorld) {
 	_centerTransformInv.setIdentity();
 	
-	myIndex->worldTransform.setIdentity();
+	container.getWrite<RigidBodyPartData>(myIndex).worldTransform.setIdentity();
 }
 
-RigidBodyPart::~RigidBodyPart() {
-#if 0
+RigidBodyPart::~RigidBodyPart() {	
 	for (JointEntry& je : _connectedJoints) {
 		je._joint->detachBodyPart(this, false);
 	}
@@ -23,8 +21,6 @@ RigidBodyPart::~RigidBodyPart() {
 	for (SpringEntry& je : _connectedSprings) {
 		je._spring->detachBodyPart(this, false);
 	}
-	
-#endif
 	
 	if (_btBody) {
 		_gameWorld->getBtDynWorld()->removeCollisionObject(_btBody);
@@ -36,7 +32,7 @@ RigidBodyPart::~RigidBodyPart() {
 	delete _collisionShapeReal;
 }
 
-void RigidBodyPart::addBlock(RigidBodyPart::DataIndex partIdx, BlockID blockId, BlockIndex position, BlockIndex direction, btQuaternion orientation)
+void RigidBodyPart::addBlock(DataIndex partIdx, BlockID blockId, BlockIndex position, BlockIndex direction, btQuaternion orientation)
 {
     position += direction;
     // FIXME check if added on joint/spring
@@ -77,8 +73,8 @@ void RigidBodyPart::addBlock(RigidBodyPart::DataIndex partIdx, BlockID blockId, 
 		// std::cout << "add ind: " << ind << std::endl;
 	}
 	
-	
-	// FIXME	_listener->onBlockWasAdded(this, blockInstance.get());
+	if (_listener)
+		_listener->onBlockWasAdded(this, blockInstance.get());
 
 	// create new compound collision shape if necessary
 	if (!_collisionShapeAligned)
@@ -115,7 +111,7 @@ void RigidBodyPart::addBlock(RigidBodyPart::DataIndex partIdx, BlockID blockId, 
 	return;
 }
 
-void RigidBodyPart::removeBlockOrJoint(RigidBodyPart::DataIndex partIdx, BlockIndex index, BlockIndex direction)
+void RigidBodyPart::removeBlockOrJoint(DataIndex partIdx, BlockIndex index, BlockIndex direction)
 {
   // FIXME check if joint, if bodypart/body is empty after deleting
   removeBlock(index);
@@ -140,14 +136,13 @@ void RigidBodyPart::setWorldTransform(btTransform const& trans) {
 	_btBody->setWorldTransform(trans * _centerTransformInv.inverse());
 	_btBody->activate(true); // maybe the forces/contacts have changed after re-positioning
 	
-	myIndex->worldTransform = trans;
+	myContainer.getWrite<RigidBodyPartData>(myIndex).worldTransform = trans;
 }
 
 void RigidBodyPart::addShit() {
 	// no shit for now
 }
 
-#if 0
 void RigidBodyPart::addJoint(Joint* joint, const BlockIndex& pos, const BlockIndex& dir) {
 	_connectedJoints.emplace_back(joint, pos, dir);
 }
@@ -218,7 +213,6 @@ std::vector<Spring *> RigidBodyPart::removeAllSprings() {
 	return springs;
 }
 
-#endif 
 
 void RigidBodyPart::removeBlock(const BlockIndex& index) {
 	// get collision shape
@@ -233,8 +227,8 @@ void RigidBodyPart::removeBlock(const BlockIndex& index) {
 			BlockIndex blockIndex(lrint(shapePos.x()), lrint(shapePos.y()), lrint(shapePos.z()));
 			if (blockIndex == centerIndex) {
 				// inform listener at beginning
-	
-				// FIXME	_listener->onBlockIsBeeingRemoved(this, bbInst.get());
+				if (_listener)
+					_listener->onBlockIsBeeingRemoved(this, bbInst.get());
 
 				_collisionShapeAligned->removeChildShapeByIndex(i);
 				// reset collisions since the collision with the removed child might be cached and cause SEGFAULTs if the shape is removed from the compound
@@ -294,7 +288,6 @@ void RigidBodyPart::updateShapeMassAndPosition() {
 		newShape->addChildShape(newChildTransform, _collisionShapeAligned->getChildShape(i));
 	}
 
-#if 0
 	// adjust constraint pivot point to new center of mass
 	for(const auto& entry: _connectedJoints)
 	{
@@ -353,7 +346,6 @@ void RigidBodyPart::updateShapeMassAndPosition() {
 				sc->setFrames(sc->getFrameOffsetA(), prevTrans);
 		}
 	}
-#endif 
 
 	_gameWorld->getBtDynWorld()->removeRigidBody(_btBody);
 	_btBody->setWorldTransform(getCurrentWorldTransform() * principal);

@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "Blocks/BodyBlock.h"
-// #include "Control/ControlObject.h"
+#include "Control/ControlObject.h"
 
 class RigidBodyPart;
 
@@ -65,16 +65,15 @@ public:
 		return _parentPart;
 	}
 
-#if 0
 	inline ControlObject* getAttachedControl()
 	{
 		return _attachedControl;
 	}
-#endif 
+
 private:
 	RigidBodyPart* _parentPart;
 
-	// ControlObject* _attachedControl;
+	ControlObject* _attachedControl;
 };
 
 typedef BodyBlockInstance::Ptr BodyBlockInstancePtr;

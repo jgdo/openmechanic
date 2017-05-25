@@ -13,37 +13,47 @@
 #include <btBulletDynamicsCommon.h>
 #include <BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h>
 
+#include "Utils/ResourceManager.h"
+
 #include "Blocks/BlockIDs.h"
 #include "BodyBlockFactory.h"
-// #include "Control/BlockControlFactory.h"
+#include "Control/BlockControlFactory.h"
 
-// #include "PlayerBody.h"
+#include "GamePresentation/EventQueue.h"
+#include "PlayerBody.h"
 
 #include "ClientInterfaces/GameWorldInterface.h"
 
 #include <mutex>
-#include "Utils/ObjectIDGenerator.h"
+
 #include <map>
 
 class FullBody;
 class PlayerBody;
 class Lift;
 
-class GameWorld: public ServerInterface<GameWorldData> {
+class GameWorld: public ServerInterface< GameWorldData> {
 public:
-	using DataIndex = AsyncObjectContainer::DataWriteIndex<GameWorldData>;
-	
-	AsyncObjectContainer& container;
-	DataIndex myIndex; // TODO private
-	
-	
-	
 	typedef std::shared_ptr<GameWorld> Ptr;
 	typedef std::shared_ptr<const GameWorld> ConstPtr;
 	
-	virtual void addBlockAsNewBody(AsyncObjectContainer::DataWriteIndex<GameWorldData>& idx, BlockID blockId, btVector3 worldPosition, btQuaternion worldOrientation, btQuaternion localBlockOrientation) override;
-		
-	GameWorld(AsyncObjectContainer& container);
+	virtual void addBlockAsNewBody(DataIndex idx, BlockID blockId, btVector3 worldPosition; btQuaternion worldOrientation, btQuaternion localBlockOrientation) override;
+	
+	class Listener {
+	public:
+		inline virtual ~Listener() {}
+
+		virtual void onFullBodyWasAdded(GameWorld* gameWorld, FullBody *fullBody) = 0;
+		virtual void onFullBodyIsBeeingRemoved(GameWorld* gameWorld, FullBody *fullBody) = 0;
+
+		virtual void onLiftWasAdded(GameWorld* gameWorld, Lift* lift) = 0;
+		virtual void onLiftIsBeeingRemoved(GameWorld* gameWorld, Lift* lift) = 0;
+
+		virtual void onPlayerBodyWasAdded(GameWorld* gameWorld, PlayerBody* player) = 0;
+		virtual void onPlayerBodyIsBeeingRemoved(GameWorld* gameWorld, PlayerBody* player) = 0;
+	};
+	
+	GameWorld();
 	virtual ~GameWorld();
 
 	void initBulletWorld(const std::vector<float> &terrainData, int terrainDataSideLength, float terrainWorldSize);
@@ -56,23 +66,20 @@ public:
 	 */
 	FullBody* addNewFullBody(BlockID blockID, btVector3 const& worldPos, btQuaternion const& worldOorientation, btQuaternion const& localBlockOrientation);
 	void removeAndDeleteFullBody(FullBody* fullBody);
-	
-	inline ObjectIDGenerator& getIdGenerator() {
-		return _idGen;
-	}
 
-	inline btDiscreteDynamicsWorld* getBtDynWorld() {
-		return _dynamicsWorld.get();
-	}
-	
-	
-#if 0
 	Lift* addLift(btVector3 const& position, float height);
 	void removeAndDeleteLift(Lift* lift);
 
 	PlayerBody* addPlayerBody(btVector3 const& position);
 	void removeAndDeletePlayerBody(PlayerBody* player);
 	
+	inline btDiscreteDynamicsWorld* getBtDynWorld() {
+		return _dynamicsWorld.get();
+	}
+	
+	inline void setListener(Listener* listener) {
+		_listener = listener;
+	}
 
 	inline ControlEngine* getControlEngine() {
 		return &_controlEngine;
@@ -81,15 +88,20 @@ public:
 	inline const ControlEngine* getControlEngine() const{
 		return &_controlEngine;
 	}
-	
+
 	inline BlockControlFactory* getBlockControlFactory() {
 		return &_blockControlFactory;
 	}
-#endif 
+
 
 	inline BodyBlockFactory* getBlockFactory()
 	{
 		return &_blockFactory;
+	}
+
+	inline ResourceManager* getResoureManager()
+	{
+		return &_resourceManager;
 	}
 
 	void makeStep(float timestep);
@@ -99,19 +111,18 @@ public:
 
 		TODO: naming
 	*/
-	// EventQueueConstPtr getLastEventQueue();
+	EventQueueConstPtr getLastEventQueue();
 
-	inline std::set<FullBody> const& getAllBodies() const {
-		return _allBodies;
-	}
-	
-#if 0
+
 	// may only be called from game physics thread
 	inline EventQueue* getActiveEventQueue()
 	{
 		return _activeStateQueue.get();
 	}
 
+	inline std::set<FullBody*> const& getAllBodies() const {
+		return _allBodies;
+	}
 
 	inline std::set<Lift*> const& getAllLifts() const {
 		return _lifts;
@@ -120,9 +131,10 @@ public:
 	inline std::set<PlayerBody*> const& getAllPlayerBodies() const {
 		return _players;
 	}
-#endif
 
 private:
+	ResourceManager _resourceManager;
+
 	std::unique_ptr<btBroadphaseInterface> _broadphase;
 	std::unique_ptr<btDefaultCollisionConfiguration> _collisionConfiguration;
 
@@ -140,23 +152,20 @@ private:
 
 	BodyBlockFactory _blockFactory;
 
-	// ControlEngine _controlEngine;
+	ControlEngine _controlEngine;
 
-	// BlockControlFactory _blockControlFactory;
+	BlockControlFactory _blockControlFactory;
 	
-	std::set<FullBody> _allBodies;
-	
-#if 0
+	std::set<FullBody*> _allBodies;
 	std::set<Lift*> _lifts;
 	std::set<PlayerBody*> _players;
-#endif
+	
+	Listener* _listener = nullptr;
 
 	void activate();
-	
-	ObjectIDGenerator _idGen;
 
-	//std::recursive_mutex _queueMutex;
-	//EventQueuePtr _lastStateQueue, _activeStateQueue;
+	std::recursive_mutex _queueMutex;
+	EventQueuePtr _lastStateQueue, _activeStateQueue;
 };
 
 typedef GameWorld::Ptr GameWorldPtr;

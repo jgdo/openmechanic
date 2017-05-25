@@ -8,21 +8,19 @@
 #include "GameWorld.h"
 
 #include "FullBody.h"
-// #include "Lift.h"
-// #include "PlayerBody.h"
+#include "Lift.h"
+#include "PlayerBody.h"
 
 #include <iostream>
 
-GameWorld::GameWorld(AsyncObjectContainer& container): container(container), myIndex(container.newBin<GameWorldData>(_idGen.generateNewID(), *this))
-/*
-_controlEngine(&_resourceManager), _lastStateQueue(std::make_shared<EventQueue>()), _activeStateQueue(std::make_shared<EventQueue>()) */{
-	
+GameWorld::GameWorld() :
+_controlEngine(&_resourceManager), _lastStateQueue(std::make_shared<EventQueue>()), _activeStateQueue(std::make_shared<EventQueue>()) {
 }
 
 GameWorld::~GameWorld() {
 }
 
-void GameWorld::addBlockAsNewBody(AsyncObjectContainer::DataWriteIndex<GameWorldData>& idx, BlockID blockId, btVector3 worldPosition, btQuaternion worldOrientation, btQuaternion localBlockOrientation) {
+void GameWorld::addBlockAsNewBody(DataIndex idx, BlockID blockId, btVector3 worldPosition; btQuaternion worldOrientation, btQuaternion localBlockOrientation) {
   addNewFullBody(blockId, worldPosition, worldOrientation, localBlockOrientation);
 }
 
@@ -58,9 +56,11 @@ void GameWorld::initBulletWorld(const std::vector<float> &terrainData, int terra
 }
 
 FullBody* GameWorld::addNewFullBody(BlockID blockID, const btVector3& worldPos, const btQuaternion& worldOorientation, btQuaternion const& localBlockOrientation) {
-	
-	auto res = _allBodies.emplace(_idGen.generateNewID(), this);
-	FullBody* body = const_cast<FullBody*>(&*res.first); // FIXME why const cast needed
+	FullBody* body = _resourceManager.create<FullBody>(this);
+	_allBodies.emplace(body);
+
+	if(_listener)
+		_listener->onFullBodyWasAdded(this, body); // notify such that the listener can install new listeners on the body which can notice the new bodypart add below
 
 	body->addNewBodyPart(blockID, btVector3(0, 0, 0), btQuaternion(0, 0, 0, 1), localBlockOrientation, nullptr);
 	body->resetPosition(worldPos, worldOorientation);
@@ -68,17 +68,6 @@ FullBody* GameWorld::addNewFullBody(BlockID blockID, const btVector3& worldPos, 
 	return body;
 }
 
-void GameWorld::removeAndDeleteFullBody(FullBody* fullBody)
-{
-	auto iter = _allBodies.find(*fullBody);
-	if (iter != _allBodies.end()) {
-		_allBodies.erase(iter);
-	}
-
-	// FIXME: what to do if body not present
-}
-
-#if 0
 
 Lift* GameWorld::addLift(btVector3 const& position, float height)
 {
@@ -107,6 +96,19 @@ void GameWorld::removeAndDeleteLift(Lift* lift)
 	// FIXME: what to do if lift not present
 }
 
+void GameWorld::removeAndDeleteFullBody(FullBody* fullBody)
+{
+	auto iter = _allBodies.find(fullBody);
+	if (iter != _allBodies.end()) {
+		if (_listener)
+			_listener->onFullBodyIsBeeingRemoved(this, fullBody);
+
+		_allBodies.erase(iter);
+		_resourceManager.destroy(fullBody->resourceID);
+	}
+
+	// FIXME: what to do if body not present
+}
 
 PlayerBody *GameWorld::addPlayerBody(btVector3 const &position) {
 	PlayerBody* player = _resourceManager.create<PlayerBody>(this, position);
@@ -131,17 +133,14 @@ void GameWorld::removeAndDeletePlayerBody(PlayerBody *player) {
 	// FIXME: what to do if player not present
 }
 
-#endif 
-
 void GameWorld::activate()
 {
-	for (const FullBody& e : _allBodies)
-		const_cast<FullBody&>(e).activate();
+	for (auto& e : _allBodies)
+		e->activate();
 }
 
 void GameWorld::makeStep(float timestep)
 {
-#if 0
 	// pre-step actions
 	for (Lift* lift : _lifts)
 	{
@@ -150,13 +149,11 @@ void GameWorld::makeStep(float timestep)
 
 	// make step
 	_controlEngine.step();
-#endif
 	_dynamicsWorld->stepSimulation(timestep, 10);
 
 	// post-step actions
 	// collect data
 
-	#if 0
 	// FIXME: update only position of moved bodies
 	for(auto& fullBody: _allBodies)
 	{
@@ -164,7 +161,6 @@ void GameWorld::makeStep(float timestep)
 		{
 			_activeStateQueue->addState(ObjectStatePtr(new BodyPartState(part->resourceID, part->getCurrentWorldTransform())));
 		});
-
 
 		for(Joint* joint: fullBody->getJoints())
 		{
@@ -176,12 +172,8 @@ void GameWorld::makeStep(float timestep)
 			btTransform tans = spring->getCenterTransform();
 			_activeStateQueue->addState(ObjectStatePtr(new SpringState(spring->resourceID, tans.getOrigin(), tans.getRotation(), spring->getSpringElongation())));
 		}
-		
 	}
-	
-	#endif
 
-#if 0
 	for (Lift* lift : _lifts)
 	{
 		_activeStateQueue->addState(ObjectStatePtr(new LiftState(lift->resourceID, lift->getPositionOnGround(), lift->getHeight(), lift->getPlatformHalfSize())));
@@ -198,11 +190,8 @@ void GameWorld::makeStep(float timestep)
 	_lastStateQueue = std::make_shared<EventQueue>();
 	_lastStateQueue.swap(_activeStateQueue);
 	_queueMutex.unlock();
-	
-#endif 
 }
 
-#if 0
 EventQueueConstPtr GameWorld::getLastEventQueue()
 {
 	// return the previous old _lastStateQueue and replace it with an empty one
@@ -213,5 +202,3 @@ EventQueueConstPtr GameWorld::getLastEventQueue()
 	_queueMutex.unlock();
 	return queue;
 }
-
-#endif

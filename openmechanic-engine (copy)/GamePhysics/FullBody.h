@@ -1,8 +1,9 @@
 #pragma once
 
 #include "RigidBodyPart.h"
-// #include "Joint.h"
-// #include "Spring.h"
+#include "Joint.h"
+#include "Spring.h"
+#include "PhysicalObject.h"
 
 #include "Blocks/BlockIDs.h"
 #include "ClientInterfaces/FullBodyInterface.h"
@@ -12,17 +13,29 @@
 
 class GameWorld;
 
-bool operator<(const FullBody& lhs, const FullBody& rhs) {
-	return &lhs < &rhs;
-}
-
-class FullBody: public GameObject, public ServerInterface<FullBodyData>
+class FullBody: public PhysicalObject, public ServerInterface<FullBodyData>
 {
 public:
-	using DataIndex = AsyncObjectContainer::DataWriteIndex<FullBodyData>;
+	DECLARE_RESOURCE(FullBody);
 	
-	
-	FullBody(OID rid, GameWorld* world);
+	class Listener {
+	public:
+		inline virtual ~Listener() {}
+
+		virtual void onPartWasAdded(FullBody *fullBody, RigidBodyPart * bodyPart) = 0;
+
+		virtual void onPartIsBeingRemoved(FullBody *fullBody, RigidBodyPart * bodyPart) = 0;
+		
+		virtual void onJointWasAdded(FullBody * fullBody, Joint *joint) = 0;
+		
+		virtual void onJointIsBeingRemoved(FullBody * fullBody, Joint *joint) = 0;
+
+		virtual void onSpringWasAdded(FullBody * fullBody, Spring *spring) = 0;
+
+		virtual void onSpringIsBeingRemoved(FullBody * fullBody, Spring *spring) = 0;
+
+		// FIXME: deletion notification
+	};
 
 	virtual ~FullBody();
 
@@ -64,13 +77,15 @@ public:
 
 	inline btDiscreteDynamicsWorld* getDynmicsWorld();
 
+	inline void setListener(Listener * listener) {
+		_listener = listener;
+	}
+	
 	void resetPosition(btVector3 const& worldPos, btQuaternion const& worldOorientation);
 	
 	void activate();
 
 	void setFreezed(bool freezed);
-	
-#if 0
 
 	inline size_t getNumParts() const {
 		return _allBodyParts.size();
@@ -93,30 +108,51 @@ public:
 	{
 		return _allSprings;
 	}
-	
-#endif
 
 	template<class T> 
 	void foreachPart(const T& func) const
 	{
 		for(auto const& part: _allBodyParts)
 		{
-			func(&part);
+			func(part.second->_bodyPart);
 		}
 	}
 
-public:	
+public:
+	FullBody(RID rid, GameWorld* world);
+
+	ATTRIBUTE_ALIGNED16(struct) PartEntry {
+		typedef std::shared_ptr<PartEntry> Ptr;
+
+		BT_DECLARE_ALIGNED_ALLOCATOR();
+
+		btTransform _centerOffset;
+
+		RigidBodyPart* _bodyPart = nullptr;
+		
+		PartEntry(RigidBodyPart* bodyPart, btTransform const& cO):
+			_centerOffset(cO), _bodyPart(bodyPart) {
+		}
+
+		PartEntry() {}
+
+		PartEntry& operator=(PartEntry const& other) {
+			_bodyPart = other._bodyPart;
+			_centerOffset = other._centerOffset;
+			return *this;
+		}
+	};
+	typedef PartEntry::Ptr PartEntryPtr;
+	
 	GameWorld* _gameWorld;
 	
-	std::set<RigidBodyPart> _allBodyParts;
-	
-	//std::list<Joint*> _allJoints;
-	//std::list<Spring*> _allSprings;
+	std::map<RigidBodyPart*, PartEntryPtr> _allBodyParts;
+	std::list<Joint*> _allJoints;
+	std::list<Spring*> _allSprings;
+
+	Listener * _listener = nullptr;
 
 	bool _freezed = false;
-	
-public:
-	DataIndex myIndex; // TODO private
 };
 
 typedef FullBody::Ptr FullBodyPtr;
