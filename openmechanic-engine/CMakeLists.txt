@@ -23,5 +23,5 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -Wno-comment -Wno-i
 add_library(openmechanic-engine ${SOURCE_FILES} ${HEADER_FILES} ${BULLET_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIRS})
 target_link_libraries(openmechanic-engine GL GLU ${BULLET_LIBRARIES} boost_system )
 
-set(Engine_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS} ${BULLET_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS}
+set(openmechanic_engine_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS} ${BULLET_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS}
         CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)

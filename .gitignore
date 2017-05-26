@@ -38,5 +38,5 @@ cmake-build-debug/
 # KDevelop
 .kdev4/
 build/
-openmechanic-engine.kdev4
+*.kdev4
 
