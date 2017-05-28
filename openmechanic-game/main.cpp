@@ -4,9 +4,12 @@
 #include <osgViewer/Viewer>
 #include <osg/PolygonMode>
 #include <osg/MatrixTransform>
+#include "RigidBodyPartVisualizer.h"
 
 int main( int argc, char** argv )
 {
+	RigidBodyPartVisualizer viz(nullptr);
+	
     osg::ref_ptr<osg::ShapeDrawable> shape1 = new osg::ShapeDrawable;
     shape1->setShape( new osg::Box(osg::Vec3(-3.0f, 0.0f, 0.0f),
                                    2.0f, 2.0f, 1.0f) );
@@ -23,7 +26,6 @@ int main( int argc, char** argv )
     figures->addDrawable( shape1.get() );
     figures->addDrawable( shape2.get() );
     figures->addDrawable( shape3.get() );
-
 
     osg::ref_ptr<osg::MatrixTransform> transformation1 = new
             osg::MatrixTransform;

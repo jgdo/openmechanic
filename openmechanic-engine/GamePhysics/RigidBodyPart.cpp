@@ -11,6 +11,8 @@ RigidBodyPart::RigidBodyPart(OID oid, FullBody* parent, GameWorld* gameWorld):
 GameObject(oid), _parent(parent), _blockData(3, 3, 3), _gameWorld(gameWorld), myIndex(parent->myIndex.container.newBin<RigidBodyPartData>(oid, *this)) {
 	_centerTransformInv.setIdentity();
 	
+	myIndex.container.postEvent(myIndex, &ClientInterface<RigidBodyPartData>::init, parent->resourceID);
+	
 	myIndex->worldTransform.setIdentity();
 }
 
@@ -78,7 +80,8 @@ void RigidBodyPart::addBlock(RigidBodyPart::DataIndex partIdx, BlockID blockId, 
 	}
 	
 	
-	// FIXME	_listener->onBlockWasAdded(this, blockInstance.get());
+	// FIXME	control id
+	myIndex.container.postEvent(myIndex, &ClientInterface<RigidBodyPartData>::blockAdded, bodyBlock, position, orientation, 0);
 
 	// create new compound collision shape if necessary
 	if (!_collisionShapeAligned)
@@ -233,8 +236,7 @@ void RigidBodyPart::removeBlock(const BlockIndex& index) {
 			BlockIndex blockIndex(lrint(shapePos.x()), lrint(shapePos.y()), lrint(shapePos.z()));
 			if (blockIndex == centerIndex) {
 				// inform listener at beginning
-	
-				// FIXME	_listener->onBlockIsBeeingRemoved(this, bbInst.get());
+				myIndex.container.postEvent(myIndex, &ClientInterface<RigidBodyPartData>::blockRemoved, blockIndex);
 
 				_collisionShapeAligned->removeChildShapeByIndex(i);
 				// reset collisions since the collision with the removed child might be cached and cause SEGFAULTs if the shape is removed from the compound

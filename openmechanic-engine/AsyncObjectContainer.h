@@ -132,7 +132,7 @@ public:
 			iter(iter), container(container), bin(bin) {
 		}
 		
-		const D* operator->() {
+		const D* operator->() const {
 			return bin.getRead();
 		}
 	};
@@ -140,6 +140,7 @@ public:
 	template<class D>
 	struct DataWriteIndex: protected DataReadIndex<D> {
 		using DataReadIndex<D>::container;
+		using DataReadIndex<D>::bin;
 		
 		inline DataWriteIndex(Iterator iter, AsyncObjectContainer& container, DataBin<D>& bin): DataReadIndex<D>(iter, container, bin) {}
 		
@@ -147,7 +148,7 @@ public:
 			return this->bin.getWrite();
 		}
 		
-		DataReadIndex<D>& asReadIndex() {
+		const DataReadIndex<D>& asReadIndex() const {
 			return *this;
 		}
 	};
@@ -166,7 +167,7 @@ public:
    
    template<class D, class P, class ...T>
    void postEvent(DataWriteIndex<D>& iter, P ptr, T ...params) {
-       eventList.emplace_back([=] () { (iter.bin.getHandler().*ptr)(iter, params...); } );
+       eventList.emplace_back([=] () { (iter.bin.getHandler().*ptr)(iter.asReadIndex(), params...); } );
    }
    
    template<class D, class P, class ...T>
@@ -179,7 +180,7 @@ public:
 	   auto ptr = std::make_shared<DataBin<D>>(rid, ctorMap[std::type_index(typeid(D))], reqHandler);
        dataBins.push_back(ptr);
        auto iter = --dataBins.end();
-       changeSet[iter]; // make sure that changeSet[iter] is constructed
+       changeSet[iter] = CREATED; // make sure that changeSet[iter] is constructed
        return DataWriteIndex<D> {iter, *this, *ptr};
   }
   

@@ -6,6 +6,7 @@
 #include <btBulletDynamicsCommon.h>
 
 #include "AsyncObjectContainer.h"
+#include "GamePhysics/Blocks/BodyBlock.h"
 
 struct RigidBodyPartData  {
   btTransform worldTransform;
@@ -13,7 +14,13 @@ struct RigidBodyPartData  {
 
 template<>
 struct ClientInterface<RigidBodyPartData>  {
+	inline virtual ~ClientInterface() {}
+	
+	virtual void init(const AsyncObjectContainer::DataReadIndex<RigidBodyPartData>& idx, OID parentFullBodyID) = 0;
+	
 	virtual void changed(const AsyncObjectContainer::DataReadIndex<RigidBodyPartData>& idx) = 0;
+	virtual void blockAdded(const AsyncObjectContainer::DataReadIndex<RigidBodyPartData>& idx, const BodyBlock* block, BlockIndex index, btQuaternion relRot, OID attachedControlOID) = 0;
+	virtual void blockRemoved(const AsyncObjectContainer::DataReadIndex<RigidBodyPartData>& idx, BlockIndex index) = 0;
 };
 
 template<>
