@@ -3,6 +3,8 @@
 typedef int ObjectID;
 typedef ObjectID OID;
 
+class GameContext;
+
 #include <memory>
 
 class GameObject
@@ -12,9 +14,9 @@ public:
 	typedef std::shared_ptr<const GameObject> ConstPtr;
 
 	const ObjectID resourceID;
+    GameContext* const mContext;
 
-	inline GameObject(ObjectID rID):
-		resourceID(rID) {}
+    GameObject(OID oid, GameContext* context);
 
 	inline virtual ~GameObject() {}
 };

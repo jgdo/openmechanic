@@ -13,17 +13,13 @@
 
 #include <iostream>
 
-GameWorld::GameWorld(AsyncObjectContainer& container): container(container), myIndex(container.newBin<GameWorldData>(_idGen.generateNewID(), *this))
+GameWorld::GameWorld(): myIndex(mContext.dataObjectContainer.createDataBin<GameWorldData>())
 /*
 _controlEngine(&_resourceManager), _lastStateQueue(std::make_shared<EventQueue>()), _activeStateQueue(std::make_shared<EventQueue>()) */{
 	
 }
 
 GameWorld::~GameWorld() {
-}
-
-void GameWorld::addBlockAsNewBody(AsyncObjectContainer::DataWriteIndex<GameWorldData>& idx, BlockID blockId, btVector3 worldPosition, btQuaternion worldOrientation, btQuaternion localBlockOrientation) {
-  addNewFullBody(blockId, worldPosition, worldOrientation, localBlockOrientation);
 }
 
 void GameWorld::initBulletWorld(const std::vector<float> &terrainData, int terrainDataSideLength,
@@ -58,9 +54,8 @@ void GameWorld::initBulletWorld(const std::vector<float> &terrainData, int terra
 }
 
 FullBody* GameWorld::addNewFullBody(BlockID blockID, const btVector3& worldPos, const btQuaternion& worldOorientation, btQuaternion const& localBlockOrientation) {
-	
-	auto res = _allBodies.emplace(_idGen.generateNewID(), this);
-	FullBody* body = const_cast<FullBody*>(&*res.first); // FIXME why const cast needed
+    FullBody* body = mContext.objectMan.create<FullBody>(&mContext, this);
+    _allBodies.emplace(body);
 
 	body->addNewBodyPart(blockID, btVector3(0, 0, 0), btQuaternion(0, 0, 0, 1), localBlockOrientation, nullptr);
 	body->resetPosition(worldPos, worldOorientation);
@@ -70,9 +65,11 @@ FullBody* GameWorld::addNewFullBody(BlockID blockID, const btVector3& worldPos, 
 
 void GameWorld::removeAndDeleteFullBody(FullBody* fullBody)
 {
-	auto iter = _allBodies.find(*fullBody);
+    auto iter = _allBodies.find(fullBody);
 	if (iter != _allBodies.end()) {
+        FullBody* body = *iter;
 		_allBodies.erase(iter);
+        mContext.objectMan.destroy(body->resourceID);
 	}
 
 	// FIXME: what to do if body not present
@@ -135,8 +132,8 @@ void GameWorld::removeAndDeletePlayerBody(PlayerBody *player) {
 
 void GameWorld::activate()
 {
-	for (const FullBody& e : _allBodies)
-		const_cast<FullBody&>(e).activate();
+    for (FullBody* e : _allBodies)
+        e->activate();
 }
 
 void GameWorld::makeStep(float timestep)

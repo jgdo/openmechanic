@@ -4,25 +4,23 @@
 // #include "Joint.h"
 // #include "Spring.h"
 
-#include "Blocks/BlockIDs.h"
-#include "ClientInterfaces/FullBodyInterface.h"
+#include "ClientInterfaces/Messages/FullBodyMsgs.h"
 
 #include <list>
 #include <map>
 
 class GameWorld;
 
-bool operator<(const FullBody& lhs, const FullBody& rhs) {
+inline bool operator<(const FullBody& lhs, const FullBody& rhs) {
 	return &lhs < &rhs;
 }
 
-class FullBody: public GameObject, public ServerInterface<FullBodyData>
+class FullBody: public GameObject
 {
 public:
-	using DataIndex = AsyncObjectContainer::DataWriteIndex<FullBodyData>;
+    using DataHandler = DataObjectHandler<FullBodyData>*;
 	
-	
-	FullBody(OID rid, GameWorld* world);
+    FullBody(OID oid, GameContext *context, GameWorld* world);
 
 	virtual ~FullBody();
 
@@ -108,7 +106,7 @@ public:
 public:	
 	GameWorld* _gameWorld;
 	
-	std::set<RigidBodyPart> _allBodyParts;
+    std::set<RigidBodyPart*> _allBodyParts;
 	
 	//std::list<Joint*> _allJoints;
 	//std::list<Spring*> _allSprings;
@@ -116,7 +114,7 @@ public:
 	bool _freezed = false;
 	
 public:
-	DataIndex myIndex; // TODO private
+    DataHandler myIndex; // TODO private
 };
 
 typedef FullBody::Ptr FullBodyPtr;

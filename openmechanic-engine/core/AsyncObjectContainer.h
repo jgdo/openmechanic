@@ -38,7 +38,7 @@ struct ObjectData: public D {
 };
 
 
-#include <Utils/GameObject.h>
+#include <core/Utils/GameObject.h>
 
 #include "ObjectData.h"
 
@@ -172,7 +172,7 @@ public:
    
    template<class D, class P, class ...T>
    void postRequest(DataReadIndex<D> iter, P ptr, T ...params) {
-       requestList.emplace_back([=] () { (iter.bin.getRequestHandler().*ptr)(DataWriteIndex<D>{iter}, params...); } );
+       requestList.emplace_back([=] () { (iter.bin.getRequestHandler().*ptr)(DataWriteIndex<D>(iter.iter, iter.container, iter.bin), params...); } );
    }
    
    template<class D>

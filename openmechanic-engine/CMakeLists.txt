@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(openmechanic-engine)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+set(CMAKE_CXX_STANDARD 14)
 
 find_package(Boost REQUIRED)
 find_package(Bullet REQUIRED)
@@ -25,3 +25,6 @@ target_link_libraries(openmechanic-engine GL GLU ${BULLET_LIBRARIES} boost_syste
 
 set(openmechanic_engine_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS} ${BULLET_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS}
         CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
+
+
+

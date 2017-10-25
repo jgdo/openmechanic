@@ -7,13 +7,12 @@
 #include <stdexcept>
 #include <iostream>
 
-RigidBodyPart::RigidBodyPart(OID oid, FullBody* parent, GameWorld* gameWorld):
-GameObject(oid), _parent(parent), _blockData(3, 3, 3), _gameWorld(gameWorld), myIndex(parent->myIndex.container.newBin<RigidBodyPartData>(oid, *this)) {
+RigidBodyPart::RigidBodyPart(OID oid, GameContext* context, FullBody* parent, GameWorld* gameWorld):
+GameObject(oid, context), _parent(parent), _blockData(3, 3, 3), _gameWorld(gameWorld),
+  myIndex(mContext->dataObjectContainer.createDataBin<RigidBodyPartData>()) {
 	_centerTransformInv.setIdentity();
 	
-	myIndex.container.postEvent(myIndex, &ClientInterface<RigidBodyPartData>::init, parent->resourceID);
-	
-	myIndex->worldTransform.setIdentity();
+    myIndex->setData()->worldTransform.setIdentity();
 }
 
 RigidBodyPart::~RigidBodyPart() {
@@ -38,7 +37,7 @@ RigidBodyPart::~RigidBodyPart() {
 	delete _collisionShapeReal;
 }
 
-void RigidBodyPart::addBlock(RigidBodyPart::DataIndex partIdx, BlockID blockId, BlockIndex position, BlockIndex direction, btQuaternion orientation)
+void RigidBodyPart::addBlock(BlockID blockId, BlockIndex position, BlockIndex direction, btQuaternion orientation)
 {
     position += direction;
     // FIXME check if added on joint/spring
@@ -50,7 +49,7 @@ void RigidBodyPart::addBlock(RigidBodyPart::DataIndex partIdx, BlockID blockId, 
 
 	btVector3 finalPos(position.x() * BodyBlock::BlockSize, position.y() * BodyBlock::BlockSize, position.z() * BodyBlock::BlockSize);
 
-	BodyBlock* bodyBlock = _gameWorld->getBlockFactory()->getCreateBodyBlock(blockId);
+    BodyBlock* bodyBlock = mContext->blockFactory.getCreateBodyBlock(blockId);
 
 	auto blockInstance = std::shared_ptr<BodyBlockInstance>(new BodyBlockInstance(this, bodyBlock, position, orientation)); 
 	// todo: aligned allocator
@@ -81,7 +80,7 @@ void RigidBodyPart::addBlock(RigidBodyPart::DataIndex partIdx, BlockID blockId, 
 	
 	
 	// FIXME	control id
-	myIndex.container.postEvent(myIndex, &ClientInterface<RigidBodyPartData>::blockAdded, bodyBlock, position, orientation, 0);
+    mContext->outQueue->postMessage(new Msg::RigidBodyPart::From::BlockAdded {resourceID,  bodyBlock, position, orientation, 0} );
 
 	// create new compound collision shape if necessary
 	if (!_collisionShapeAligned)
@@ -118,7 +117,7 @@ void RigidBodyPart::addBlock(RigidBodyPart::DataIndex partIdx, BlockID blockId, 
 	return;
 }
 
-void RigidBodyPart::removeBlockOrJoint(RigidBodyPart::DataIndex partIdx, BlockIndex index, BlockIndex direction)
+void RigidBodyPart::removeBlockOrJoint(BlockIndex index, BlockIndex direction)
 {
   // FIXME check if joint, if bodypart/body is empty after deleting
   removeBlock(index);
@@ -143,7 +142,7 @@ void RigidBodyPart::setWorldTransform(btTransform const& trans) {
 	_btBody->setWorldTransform(trans * _centerTransformInv.inverse());
 	_btBody->activate(true); // maybe the forces/contacts have changed after re-positioning
 	
-	myIndex->worldTransform = trans;
+    myIndex->setData()->worldTransform = trans;
 }
 
 void RigidBodyPart::addShit() {
@@ -236,7 +235,7 @@ void RigidBodyPart::removeBlock(const BlockIndex& index) {
 			BlockIndex blockIndex(lrint(shapePos.x()), lrint(shapePos.y()), lrint(shapePos.z()));
 			if (blockIndex == centerIndex) {
 				// inform listener at beginning
-				myIndex.container.postEvent(myIndex, &ClientInterface<RigidBodyPartData>::blockRemoved, blockIndex);
+                mContext->outQueue->postMessage(new Msg::RigidBodyPart::From::BlockRemoved(resourceID, blockIndex) );
 
 				_collisionShapeAligned->removeChildShapeByIndex(i);
 				// reset collisions since the collision with the removed child might be cached and cause SEGFAULTs if the shape is removed from the compound

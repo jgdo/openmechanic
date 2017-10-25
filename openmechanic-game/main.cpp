@@ -5,9 +5,20 @@
 #include <osg/PolygonMode>
 #include <osg/MatrixTransform>
 #include "RigidBodyPartVisualizer.h"
+#include "GamePhysics/GameWorld.h"
+#include "ClientInterfaces/GameWorldInterface.h"
 
 int main( int argc, char** argv )
 {
+    AsyncObjectContainer asyncContainer;
+    GameWorld world(asyncContainer);
+
+    asyncContainer.postRequest(world.myIndex.asReadIndex(), &ServerInterface<GameWorldData>::addBlockAsNewBody, BLOCK_WOOD, btVector3(0, 0, 1), btQuaternion(0,0,0), btQuaternion(0,0,0));
+
+    // world.addBlockAsNewBody(world.myIndex, BLOCK_WOOD, btVector3(0, 0, 1), btQuaternion(0,0,0), btQuaternion(0,0,0));
+
+    // (world.*(&GameWorld::addBlockAsNewBody))(DataWriteIndex<D>{iter}, params...); }
+
 	RigidBodyPartVisualizer viz(nullptr);
 	
     osg::ref_ptr<osg::ShapeDrawable> shape1 = new osg::ShapeDrawable;

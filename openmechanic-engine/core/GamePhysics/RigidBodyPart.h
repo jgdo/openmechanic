@@ -4,12 +4,14 @@
 
 #include <eigen3/Eigen/Dense>
 
-#include "Utils/DynamicArray.h"
+#include "core/Utils/DynamicArray.h"
 #include "BodyBlockInstance.h"
 #include "Blocks/BlockIDs.h"
 #include "Blocks/BodyBlock.h"
-#include "ClientInterfaces/RigidBodyPartInterface.h"
-#include "Utils/ClientInterfaceHelpers.h"
+#include "core/Utils/ClientInterfaceHelpers.h"
+#include <ClientInterfaces/Messages/RigidBodyPartMsgs.h>
+
+#include <core/GamePhysics/GameContext.h>
 
 #include <list>
 #include <vector>
@@ -19,26 +21,25 @@ class Spring;
 class FullBody;
 class GameWorld;
 
-bool operator<(const RigidBodyPart& lhs, const RigidBodyPart& rhs) {
+inline bool operator<(const RigidBodyPart& lhs, const RigidBodyPart& rhs) {
 	return &lhs < &rhs;
 }
 
-ATTRIBUTE_ALIGNED16(class) RigidBodyPart : public GameObject, public ServerInterface<RigidBodyPartData> {
+ATTRIBUTE_ALIGNED16(class) RigidBodyPart : public GameObject {
 public:
-	using DataIndex = AsyncObjectContainer::DataWriteIndex<RigidBodyPartData>;
-	
+    using DataHandler = DataObjectHandler<RigidBodyPartData>*;
 	
      /**
 			throws exception if block already filled
 
 			If this is the first block, the body will be placed at 0, 0, 0
 	 */
-      virtual void addBlock(DataIndex partIdx, BlockID blockId, BlockIndex basePosition, BlockIndex direction, btQuaternion orientation) override;
-      virtual void removeBlockOrJoint(DataIndex partIdx, BlockIndex index, BlockIndex direction) override;
+      void addBlock(BlockID blockId, BlockIndex basePosition, BlockIndex direction, btQuaternion orientation);
+      void removeBlockOrJoint(BlockIndex index, BlockIndex direction);
       
 	BT_DECLARE_ALIGNED_ALLOCATOR();
 
-	RigidBodyPart(OID oid, FullBody* parent, GameWorld* gameWorld);
+    RigidBodyPart(OID oid, GameContext *context, FullBody* parent, GameWorld* gameWorld);
 	
 	~RigidBodyPart();
 	
@@ -218,7 +219,7 @@ protected:
 	void ensureIndexExits(BlockIndex const& index);
 	
 public:
-	DataIndex myIndex; // TODO private
+    DataHandler myIndex; // TODO private
 };
 
 typedef RigidBodyPart::Ptr RigidBodyPartPtr;

@@ -2,16 +2,16 @@
 #include "GameWorld.h"
 #include <iostream>
 
-FullBody::FullBody(OID rid, GameWorld* world) : 
-	GameObject(rid), _gameWorld(world), myIndex(_gameWorld->myIndex.container.newBin<FullBodyData>(rid, *this)) {
+FullBody::FullBody(OID oid, GameContext* context, GameWorld* world) :
+    GameObject(oid, context), _gameWorld(world), myIndex(context->dataObjectContainer.createDataBin<FullBodyData>()) {
 }
 
 FullBody::~FullBody() {
 }
 
 RigidBodyPart* FullBody::addNewBodyPart(BlockID blockId, btVector3 const& worldPosition, btQuaternion const& worldOrientation, btQuaternion const& localBlockOrientation, RigidBodyPart* reference) {	
-	std::set<RigidBodyPart>::iterator res = _allBodyParts.emplace(_gameWorld->getIdGenerator().generateNewID(), this, _gameWorld).first;
-	RigidBodyPart* bodyPart = const_cast<RigidBodyPart*>( &*res); // FIXME why const_cast needed???
+    RigidBodyPart* bodyPart = mContext->objectMan.create<RigidBodyPart>(mContext, this, _gameWorld);
+    _allBodyParts.emplace(bodyPart);
 	
 	btTransform worldTransform(worldOrientation, worldPosition);
 		
@@ -29,14 +29,14 @@ RigidBodyPart* FullBody::addNewBodyPart(BlockID blockId, btVector3 const& worldP
 	// FIXME: above works on GCC
 
 
-	bodyPart->addBlock(bodyPart->myIndex, blockId, BlockIndex(0, 0, 0), BlockIndex(0, 0, 0), localBlockOrientation);
+    bodyPart->addBlock(blockId, BlockIndex(0, 0, 0), BlockIndex(0, 0, 0), localBlockOrientation);
 	bodyPart->setWorldTransform(worldTransform);
 
 	return bodyPart;
 }
 
 void FullBody::removeAndDeleteBodyPart(RigidBodyPart* bodyPart) {
-	auto iter = _allBodyParts.find(*bodyPart);
+    auto iter = _allBodyParts.find(bodyPart);
 	if(iter != _allBodyParts.end()) {
 		
 #if 0
@@ -57,7 +57,9 @@ void FullBody::removeAndDeleteBodyPart(RigidBodyPart* bodyPart) {
 			}
 			
 #endif 
+            const RigidBodyPart* part = *iter;
 			_allBodyParts.erase(iter);
+            mContext->objectMan.destroy(part->resourceID);
 	}
 	
 	// FIXME: what to do if joint not present
@@ -98,21 +100,21 @@ void FullBody::resetPosition(const btVector3& worldPos, const btQuaternion& worl
 	
 	std::cout << "resetting position for full body" << std::endl;
 	
-	for(const RigidBodyPart& bodyPart: _allBodyParts) {
-		const_cast<RigidBodyPart&>(bodyPart).setWorldTransform(worldTrans*bodyPart._centerOffset);
+    for(RigidBodyPart* bodyPart: _allBodyParts) {
+        bodyPart->setWorldTransform(worldTrans*bodyPart->_centerOffset);
 	}
 }
 
 void FullBody::activate() {
-	for(auto& e: _allBodyParts)
-		const_cast<RigidBodyPart&>(e).getBtBody()->activate(true);
+    for(auto e: _allBodyParts)
+        e->getBtBody()->activate(true);
 }
 
 void FullBody::setFreezed(bool freezed)
 {
 	_freezed = freezed;
-	for (auto& e : _allBodyParts)
-		const_cast<RigidBodyPart&>(e).setFreezed(freezed);
+    for (auto e : _allBodyParts)
+        e->setFreezed(freezed);
 }
 
 btDiscreteDynamicsWorld* FullBody::getDynmicsWorld() {

@@ -19,31 +19,28 @@
 
 // #include "PlayerBody.h"
 
-#include "ClientInterfaces/GameWorldInterface.h"
+#include <core/GamePhysics/GameContext.h>
+
+#include "ClientInterfaces/Messages/GameWorldMsgs.h"
 
 #include <mutex>
-#include "Utils/ObjectIDGenerator.h"
+#include "core/Utils/ObjectIDGenerator.h"
 #include <map>
 
 class FullBody;
 class PlayerBody;
 class Lift;
 
-class GameWorld: public ServerInterface<GameWorldData> {
+class GameWorld {
 public:
-	using DataIndex = AsyncObjectContainer::DataWriteIndex<GameWorldData>;
+    using DataHandler = DataObjectHandler<GameWorldData>*;
 	
-	AsyncObjectContainer& container;
-	DataIndex myIndex; // TODO private
-	
-	
+    DataHandler myIndex; // TODO private
 	
 	typedef std::shared_ptr<GameWorld> Ptr;
 	typedef std::shared_ptr<const GameWorld> ConstPtr;
-	
-	virtual void addBlockAsNewBody(AsyncObjectContainer::DataWriteIndex<GameWorldData>& idx, BlockID blockId, btVector3 worldPosition, btQuaternion worldOrientation, btQuaternion localBlockOrientation) override;
-		
-	GameWorld(AsyncObjectContainer& container);
+
+    GameWorld();
 	virtual ~GameWorld();
 
 	void initBulletWorld(const std::vector<float> &terrainData, int terrainDataSideLength, float terrainWorldSize);
@@ -56,10 +53,6 @@ public:
 	 */
 	FullBody* addNewFullBody(BlockID blockID, btVector3 const& worldPos, btQuaternion const& worldOorientation, btQuaternion const& localBlockOrientation);
 	void removeAndDeleteFullBody(FullBody* fullBody);
-	
-	inline ObjectIDGenerator& getIdGenerator() {
-		return _idGen;
-	}
 
 	inline btDiscreteDynamicsWorld* getBtDynWorld() {
 		return _dynamicsWorld.get();
@@ -87,11 +80,6 @@ public:
 	}
 #endif 
 
-	inline BodyBlockFactory* getBlockFactory()
-	{
-		return &_blockFactory;
-	}
-
 	void makeStep(float timestep);
 
 	/*
@@ -101,7 +89,7 @@ public:
 	*/
 	// EventQueueConstPtr getLastEventQueue();
 
-	inline std::set<FullBody> const& getAllBodies() const {
+    inline std::set<FullBody*> const& getAllBodies() const {
 		return _allBodies;
 	}
 	
@@ -123,6 +111,8 @@ public:
 #endif
 
 private:
+    GameContext mContext;
+
 	std::unique_ptr<btBroadphaseInterface> _broadphase;
 	std::unique_ptr<btDefaultCollisionConfiguration> _collisionConfiguration;
 
@@ -137,14 +127,11 @@ private:
 
 	std::vector<float> _terrainHeightData;
 
-
-	BodyBlockFactory _blockFactory;
-
 	// ControlEngine _controlEngine;
 
 	// BlockControlFactory _blockControlFactory;
 	
-	std::set<FullBody> _allBodies;
+    std::set<FullBody*> _allBodies;
 	
 #if 0
 	std::set<Lift*> _lifts;
@@ -153,7 +140,6 @@ private:
 
 	void activate();
 	
-	ObjectIDGenerator _idGen;
 
 	//std::recursive_mutex _queueMutex;
 	//EventQueuePtr _lastStateQueue, _activeStateQueue;
