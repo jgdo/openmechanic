@@ -439,6 +439,8 @@ void ThreadedLocalGameEngine::gameThreadFunction()
 {
 	_gameWorld->addPlayerBody(btVector3(0,1,0));
 
+    _gameWorld->addNewFullBody(BLOCK_WOOD, btVector3(0, 0, 1), btQuaternion(0,0,0), btQuaternion(0,0,0));
+
 	_timer.async_wait(boost::bind(&ThreadedLocalGameEngine::timerTick, this));
 	_ioService.run();
 }
