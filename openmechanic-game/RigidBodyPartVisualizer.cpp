@@ -11,6 +11,8 @@
 
 #include "osgbCollision/Utils.h"
 
+#include <osg/UserDataContainer>
+
 void RigidBodyPartVisualizer::addBlock(const BodyBlock *block, const BlockIndex &index, const btQuaternion &relRot, RID attachedControlRID)
 {
     osg::ref_ptr<osg::Geode> blockNode = new osg::Geode;
@@ -21,6 +23,10 @@ void RigidBodyPartVisualizer::addBlock(const BodyBlock *block, const BlockIndex 
         blockNode->addDrawable(blockEntity.first);
     else
         std::cerr << "no entity for block id " << block->getID() << std::endl;
+
+    std::stringstream ss;
+    ss << "block " << block->getID() << " @ (" << index.x() << " " << index.y() << " " << index.z() << ") of body " << _bodyPartID;
+    blockNode->setName(ss.str());
 
     osg::ref_ptr<osg::MatrixTransform> blockTransform = new osg::MatrixTransform;
     blockTransform->setMatrix(osgbCollision::asOsgMatrix(btTransform(relRot, BodyBlock::positionFormIndex(index))) * osg::Matrix::scale(blockEntity.second * BodyBlock::BlockSize));
